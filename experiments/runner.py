@@ -13,7 +13,7 @@ LR = 1e-3
 
 def run_one(data, seed, criterion="taylor1", sparsity=0.9, epochs=20, schedule="cubic",
             regrow=0.0, normalize=True, min_density=0.01, ramp_start=2, ramp_end=0.75,
-            every=100, save_path=None, log=None):
+            every=100, ema=0.9, save_path=None, log=None):
     rng = np.random.default_rng(seed)
     sizes = [data["n_features"], *HIDDEN, data["n_classes"]]
     model = make_mlp(sizes, rng, masked=True)
@@ -30,7 +30,7 @@ def run_one(data, seed, criterion="taylor1", sparsity=0.9, epochs=20, schedule="
             plan = oneshot_plan(sparsity, end)
         pruner = SelfPruner(masked_layers(model), criterion, plan, seed=seed, regrow=regrow,
                             cooldown=2 * every, grace=2 * every, normalize=normalize,
-                            min_density=min_density, optimizer=opt)
+                            min_density=min_density, ema=ema, optimizer=opt)
 
     history = fit(model, opt, data, epochs, BATCH, seed, pruner=pruner, log=log)
     test_loss, test_acc = evaluate(model, data["X_test"], data["y_test"])
