@@ -16,6 +16,7 @@ def main():
     ap.add_argument("--sparsity", type=float, default=0.9)
     ap.add_argument("--schedule", default="cubic", choices=["cubic", "oneshot"])
     ap.add_argument("--regrow", type=float, default=0.0)
+    ap.add_argument("--every", type=int, default=100, help="steps between prune events")
     ap.add_argument("--ema", type=float, default=0.99)
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--seed", type=int, default=0)
@@ -24,7 +25,7 @@ def main():
 
     data = load_dataset(args.dataset, args.seed)
     res = run_one(data, args.seed, args.criterion, args.sparsity, args.epochs,
-                  schedule=args.schedule, regrow=args.regrow, ema=args.ema, log=print)
+                  schedule=args.schedule, regrow=args.regrow, ema=args.ema, every=args.every, log=print)
     row = res["row"]
     print(f"\nachieved sparsity {row['achieved_sparsity']:.4f} "
           f"({row['active_weights']} weights left)  test acc {row['test_acc']:.4f}")

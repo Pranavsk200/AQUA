@@ -37,7 +37,8 @@ because float summation order changes with thread count (I saw the 4th decimal m
 exactly (magnitude 0.9835, ours 0.9816, ours+regrow 0.9835).
 
 Useful flags for Part 3: `--criterion {magnitude,taylor1,taylor2,random}`, `--regrow 0.3`,
-`--schedule {cubic,oneshot}`, `--ema 0.99`, `--dataset digits` for a seconds-long offline run.
+`--schedule {cubic,oneshot}`, `--ema 0.99`, `--every 100` (steps between prune events). For a seconds-long offline smoke run:
+`python -m experiments.part3_prune --dataset digits --epochs 40 --every 10` (about 98.9% test accuracy at 90% sparsity).
 
 ## Layout
 
