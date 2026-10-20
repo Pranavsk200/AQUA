@@ -12,10 +12,11 @@ from train.data import load_dataset
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="mnist")
-    ap.add_argument("--criterion", default="taylor1", choices=["magnitude", "taylor1", "taylor2", "random"])
+    ap.add_argument("--criterion", default="taylor2", choices=["magnitude", "taylor1", "taylor2", "random"])
     ap.add_argument("--sparsity", type=float, default=0.9)
     ap.add_argument("--schedule", default="cubic", choices=["cubic", "oneshot"])
     ap.add_argument("--regrow", type=float, default=0.0)
+    ap.add_argument("--ema", type=float, default=0.99)
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default="")
@@ -23,7 +24,7 @@ def main():
 
     data = load_dataset(args.dataset, args.seed)
     res = run_one(data, args.seed, args.criterion, args.sparsity, args.epochs,
-                  schedule=args.schedule, regrow=args.regrow, log=print)
+                  schedule=args.schedule, regrow=args.regrow, ema=args.ema, log=print)
     row = res["row"]
     print(f"\nachieved sparsity {row['achieved_sparsity']:.4f} "
           f"({row['active_weights']} weights left)  test acc {row['test_acc']:.4f}")
