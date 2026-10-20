@@ -13,7 +13,8 @@ LEVELS = [0.5, 0.75, 0.9, 0.95, 0.98]
 SEEDS = [0, 1, 2, 3, 4]
 METHODS = {
     "magnitude": dict(criterion="magnitude"),
-    "ours": dict(criterion="taylor1"),
+    "ours": dict(criterion="taylor2", ema=0.99),
+    "ours_regrow": dict(criterion="taylor2", ema=0.99, regrow=0.3),
 }
 MODEL_DIR = os.path.join(os.path.dirname(out("x")), "..", "data", "models")
 
@@ -40,19 +41,19 @@ def main():
 
     stats = []
     for level in LEVELS:
-        for key in ("test_acc", "val_acc"):
-            s = paired_summary(scores("ours", level, key), scores("magnitude", level, key))
-            stats.append({"sparsity": level, "metric": key,
-                          "ours_mean": scores("ours", level, key).mean(),
-                          "magnitude_mean": scores("magnitude", level, key).mean(),
-                          "ours_std": scores("ours", level, key).std(ddof=1),
-                          "magnitude_std": scores("magnitude", level, key).std(ddof=1), **s})
+        for name in ("ours", "ours_regrow"):
+            for key in ("test_acc", "val_acc"):
+                a, b = scores(name, level, key), scores("magnitude", level, key)
+                stats.append({"method": name, "sparsity": level, "metric": key,
+                              "method_mean": a.mean(), "magnitude_mean": b.mean(),
+                              "method_std": a.std(ddof=1), "magnitude_std": b.std(ddof=1),
+                              **paired_summary(a, b)})
     write_csv(out("baseline_stats.csv"), stats)
 
     dense = scores("dense", 0.0)
     xs = [0.0] + LEVELS
     fig, ax = plt.subplots(1, 2, figsize=(11, 4))
-    for name, color in (("magnitude", "tab:blue"), ("ours", "tab:red")):
+    for name, color in (("magnitude", "tab:blue"), ("ours", "tab:red"), ("ours_regrow", "tab:green")):
         mean = [dense.mean()] + [scores(name, l).mean() for l in LEVELS]
         std = [dense.std(ddof=1)] + [scores(name, l).std(ddof=1) for l in LEVELS]
         ax[0].errorbar(xs, mean, yerr=std, marker="o", capsize=3, color=color, label=name)
@@ -61,21 +62,23 @@ def main():
     ax[0].legend(); ax[0].grid(alpha=0.3)
     ax[0].set_title("Sparsity-accuracy Pareto curve")
 
-    st = [s for s in stats if s["metric"] == "test_acc"]
-    mid = [s["mean_diff"] * 100 for s in st]
-    err = [[s["mean_diff"] * 100 - s["ci_low"] * 100 for s in st],
-           [s["ci_high"] * 100 - s["mean_diff"] * 100 for s in st]]
-    ax[1].errorbar(LEVELS, mid, yerr=err, marker="o", capsize=3, color="k")
+    for name, color, shift in (("ours", "tab:red", -0.004), ("ours_regrow", "tab:green", 0.004)):
+        st = [s for s in stats if s["metric"] == "test_acc" and s["method"] == name]
+        mid = [s["mean_diff"] * 100 for s in st]
+        err = [[s["mean_diff"] * 100 - s["ci_low"] * 100 for s in st],
+               [s["ci_high"] * 100 - s["mean_diff"] * 100 for s in st]]
+        ax[1].errorbar([l + shift for l in LEVELS], mid, yerr=err, marker="o", capsize=3, color=color, label=name)
+    ax[1].legend()
     ax[1].axhline(0, color="gray", lw=1)
-    ax[1].set_xlabel("sparsity"); ax[1].set_ylabel("ours − magnitude (accuracy points)")
+    ax[1].set_xlabel("sparsity"); ax[1].set_ylabel("method − magnitude (accuracy points)")
     ax[1].set_title("Paired difference, bootstrap 95% CI"); ax[1].grid(alpha=0.3)
     fig.tight_layout()
     fig.savefig(out("pareto.png"), dpi=130)
 
-    print("\nsparsity  magnitude          ours               diff [95% CI]            p(perm)")
-    for s in st:
-        print(f"{s['sparsity']:.2f}      {s['magnitude_mean']:.4f}±{s['magnitude_std']:.4f}   "
-              f"{s['ours_mean']:.4f}±{s['ours_std']:.4f}   "
+    print("\nmethod        sparsity  magnitude          method             diff [95% CI]            p(perm)")
+    for s in (x for x in stats if x["metric"] == "test_acc"):
+        print(f"{s['method']:12s}  {s['sparsity']:.2f}      {s['magnitude_mean']:.4f}±{s['magnitude_std']:.4f}   "
+              f"{s['method_mean']:.4f}±{s['method_std']:.4f}   "
               f"{s['mean_diff'] * 100:+.2f} [{s['ci_low'] * 100:+.2f}, {s['ci_high'] * 100:+.2f}]   {s['p_perm']:.3f}")
 
 
