@@ -83,3 +83,9 @@ def make_mlp(sizes, rng, activation="relu", masked=False, dtype=np.float32):
 
 def masked_layers(model):
     return [l for l in model.layers if isinstance(l, MaskedLinear)]
+
+
+def mask_list(model, params):
+    # masks aligned with `params` so the optimizer can see them
+    lookup = {id(l.weight): l.mask for l in masked_layers(model)}
+    return [lookup.get(id(p)) for p in params]
