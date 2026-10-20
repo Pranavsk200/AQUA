@@ -89,3 +89,24 @@ def mask_list(model, params):
     # masks aligned with `params` so the optimizer can see them
     lookup = {id(l.weight): l.mask for l in masked_layers(model)}
     return [lookup.get(id(p)) for p in params]
+
+
+def save_model(model, path):
+    arrays = {}
+    for i, layer in enumerate(l for l in model.layers if isinstance(l, Linear)):
+        arrays[f"w{i}"] = layer.weight.data
+        arrays[f"b{i}"] = layer.bias.data
+        arrays[f"m{i}"] = getattr(layer, "mask", np.ones_like(layer.weight.data))
+    np.savez_compressed(path, **arrays)
+
+
+def load_model(path, activation="relu"):
+    z = np.load(path)
+    n = len([k for k in z.files if k.startswith("w")])
+    sizes = [z["w0"].shape[0]] + [z[f"w{i}"].shape[1] for i in range(n)]
+    model = make_mlp(sizes, np.random.default_rng(0), activation=activation, masked=True)
+    for i, layer in enumerate(masked_layers(model)):
+        layer.weight.data[...] = z[f"w{i}"]
+        layer.bias.data[...] = z[f"b{i}"]
+        layer.mask[...] = z[f"m{i}"]
+    return model
