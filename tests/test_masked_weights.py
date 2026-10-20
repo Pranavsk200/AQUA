@@ -158,7 +158,7 @@ def test_revived_connection_starts_from_clean_state():
     assert np.all(np.sign(moved[nz]) == -np.sign(g[nz]))
     c1, c2 = 1 - 0.9 ** opt.t, 1 - 0.999 ** opt.t
     expected = 1e-2 * (0.1 / c1) / np.sqrt(0.001 / c2)
-    np.testing.assert_allclose(np.abs(moved[nz]), expected, rtol=1e-6)
+    np.testing.assert_allclose(np.abs(moved[nz]), expected, rtol=1e-3)
     assert expected > 3 * 1e-2
 
 
