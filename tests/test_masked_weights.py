@@ -142,6 +142,7 @@ def test_revived_connection_starts_from_clean_state():
 
     revived = (layer.mask == 0)
     layer.mask[:] = 1.0
+    opt.t = 5000
     assert np.all(layer.weight.data[revived] == 0.0)
     assert np.all(opt.m[0][revived] == 0.0) and np.all(opt.v[0][revived] == 0.0)
 
@@ -151,10 +152,14 @@ def test_revived_connection_starts_from_clean_state():
     g = layer.weight.grad
     opt.step()
     moved = layer.weight.data - before
-    # fresh moments mean a clean first step: sign(-g), never bigger than lr
+    # fresh moments: the step follows -sign(g). With a late global t the bias correction is ~1,
+    # so the size is 0.1/sqrt(0.001) = 3.16 * lr, not lr. Stale momentum would not look like this.
     nz = revived & (g != 0)
     assert np.all(np.sign(moved[nz]) == -np.sign(g[nz]))
-    assert np.all(np.abs(moved[revived]) <= 1e-2 * (1 + 1e-6))
+    c1, c2 = 1 - 0.9 ** opt.t, 1 - 0.999 ** opt.t
+    expected = 1e-2 * (0.1 / c1) / np.sqrt(0.001 / c2)
+    np.testing.assert_allclose(np.abs(moved[nz]), expected, rtol=1e-6)
+    assert expected > 3 * 1e-2
 
 
 def test_full_mlp_forward_backward_with_masks_has_no_nans():

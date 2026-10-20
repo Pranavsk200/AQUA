@@ -72,10 +72,14 @@ does exactly this and asserts that it fails. The fix in [train/optim.py](train/o
 
 On **revival**, the entry has `w = 0` and `m = v = 0` (it was held there while masked), so there is
 no stale momentum to leak in. The test checks the first step is `-lr · sign(g)`-sized, not
-momentum-sized. One known imperfection: Adam's bias correction uses a global step count `t`, so a revived
-weight with fresh moments takes steps of about `0.6 · lr` rather than `lr`
-(`m̂/√v̂ ≈ 0.1·√(1-β2^t) / (√0.001 · (1-β1^t))`). A per-element age counter would remove this; I judged
-it not worth the extra state, but it is a real difference from a fresh start.
+momentum-sized. One known imperfection: Adam's bias correction uses a global step count `t`. Late in training
+`t` is in the thousands, the correction factors are ~1, and a revived weight with fresh moments
+gets a first step of `0.1·g / √(0.001·g²) ≈ 3.2 · lr` in the direction of `-g`, which then shrinks as `v`
+fills in. So revived weights take a short burst of oversized steps (from `0` toward the gradient
+sign) rather than a gentle start. A per-element age counter in the bias correction would fix this
+(a fresh element would then see the same warm-up as at `t = 1`). I did not do it; the cost is small
+because the weight starts at 0, but it is a real departure from a fresh start and
+`test_revived_connection_starts_from_clean_state` pins the actual behaviour.
 
 **Regrowth and stability.** New connections start at `w = 0`, so reviving one does not change the
 function (no loss spike). Two guards stop flip-flopping: a just-pruned connection cannot be revived for
